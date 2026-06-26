@@ -156,6 +156,35 @@ export async function repayLoanOnChain(
 }
 
 /**
+ * Repay the agent's **most recent** open loan without needing its id (vault
+ * `repay_latest`). Pulls back principal + the JIT fee — the fee accrues to the pool
+ * as LP yield. The agent must first `approve` the vault for principal + fee
+ * (see ensureCollateralAllowance) and hold that much of the asset.
+ */
+export async function repayLatestOnChain(
+  cfg: CasperWiringConfig
+): Promise<{ deployHash: string }> {
+  const client = rpc(cfg.nodeUrl);
+  const algo = cfg.keyAlgorithm ?? KeyAlgorithm.ED25519;
+  const signer = await loadPrivateKey(cfg.agentSecretKey, algo);
+  const sender = PublicKey.fromHex(cfg.agentPublicKey);
+
+  const header = DeployHeader.default();
+  header.account = sender;
+  header.chainName = cfg.chainName;
+  header.ttl = new Duration(DEFAULT_DEPLOY_TTL);
+
+  const session = callPkg(cfg.vaultContractHash, "repay_latest", Args.fromMap({}));
+
+  const payment = ExecutableDeployItem.standardPayment("3000000000");
+  const deploy = Deploy.makeDeploy(header, payment, session);
+  deploy.sign(signer);
+
+  const result = await client.putDeploy(deploy);
+  return { deployHash: result.deployHash.toHex() };
+}
+
+/**
  * Approve the vault to pull `amount` of the CEP-18 asset from the agent (needed
  * before a collateralized borrow_and_pay can escrow, and before repay_loan can
  * pull the principal). One-time per allowance top-up.

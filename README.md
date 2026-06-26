@@ -151,17 +151,30 @@ for Tier-3).
 `verifyPoolSettlement` is resilient to indexer lag — it polls a bounded window while
 the deploy is still propagating, and fails fast on an executed on-chain failure.
 
+## Yield-bearing pool
+
+The vault charges a **5% JIT credit fee** on every borrow. On repayment the agent pays
+back principal **+ fee**, and the fee accrues to the pool's value — so **LPs earn yield**:
+deposits are minted as shares, and a share redeems for more than it cost as fees pile up.
+Agents can settle their newest loan with **`repayLatestOnChain`** (no loan id needed),
+which makes auto-repay-from-earnings trivial.
+
+**Proven live (casper-test):** an LP deposited `2_000_000`, an agent borrowed `1_000_000`
+and repaid via `repay_latest`, the pool grew to `2_050_000`, and the LP **withdrew
+`2_050_000` for its `2_000_000` deposit — `+50_000` realized yield.**
+[repay `80e90a43…`](https://testnet.cspr.live/deploy/80e90a43120b40524038a405088f3f83c4ce45674a9ff3e28c577a20552cba9e) ·
+[LP withdraw `44318b5b…`](https://testnet.cspr.live/deploy/44318b5b303dab8dbbb3c3b26ac0f148bf7b44701996fbd446f17f9f7622023c)
+
 ## Live deployment (casper-test)
 
 | | |
 |---|---|
-| Vault (lending pool) package | `664d99de146b9b573161a387d89fefc649677351d8a6d2acbe22109bf88f6b12` |
+| Vault (yield-bearing lending pool) package | `ca4086d3a7b1abf000d0a79e23a237bb484a14807e9438f2c56f3461073e1b2f` |
 | CEP-18 asset (Fund402 USDC / F402) | `389cedc529cc553e2639884c9dcc5e6dcbeb3920f7f5ca5a39bf7f7b866bccd0` |
 | Network | `casper:casper-test` |
 | Facilitator | `https://x402-facilitator.cspr.cloud` |
 
-These are the defaults the SDK ships with — point `vaultContract` / `asset` at your
-own deployment for production.
+Point `vaultContract` / `asset` at your own deployment for production.
 
 ## Verified live ✅
 
@@ -194,8 +207,9 @@ Run them yourself: `npm run test:e2e` (Tier-3) and `npm run test:e2e:collateral`
 · `decodeChallenge` · `selectCasperOption` · `testnetClient` / `mainnetClient`.
 
 **On-chain primitives:** `borrowAndPayOnChain` · `repayLoanOnChain` ·
-`ensureCollateralAllowance` · `buildExactPayload` · `waitForDeploy` ·
-`agentTaggedAddress` · `transferAuthorizationDigest`.
+`repayLatestOnChain` (repay your newest loan — no loan id) · `ensureCollateralAllowance`
+· `buildExactPayload` · `waitForDeploy` · `agentTaggedAddress` ·
+`transferAuthorizationDigest`.
 
 ## ⚠️ Security
 

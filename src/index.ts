@@ -46,6 +46,7 @@ export {
 export {
   borrowAndPayOnChain,
   repayLoanOnChain,
+  repayLatestOnChain,
   ensureCollateralAllowance,
   buildExactPayload,
   waitForDeploy,
