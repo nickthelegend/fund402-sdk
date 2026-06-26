@@ -17,6 +17,7 @@ import { KeyAlgorithm } from "casper-js-sdk";
 import {
   borrowAndPayOnChain,
   buildExactPayload,
+  ensureCollateralAllowance,
   waitForDeploy,
   type CasperWiringConfig,
 } from "./casper";
@@ -38,6 +39,8 @@ export interface Fund402ClientConfig {
   keyAlgorithm?: KeyAlgorithm;
   /** Over-collateralisation ratio the agent posts (vault re-checks on-chain). Default 1.5. */
   collateralRatio?: number;
+  /** Auto-approve the vault to escrow collateral before a Tier-1/2 borrow. Default true. */
+  autoApprove?: boolean;
   /** Gas (motes) for the borrow_and_pay deploy. Default 5 CSPR. */
   borrowGasMotes?: string;
   /** Underlying fetch implementation. Default global fetch. */
@@ -48,6 +51,8 @@ export interface Fund402ClientConfig {
 export interface Fund402Event {
   type:
     | "intercepted_402"
+    | "approving"
+    | "approve_submitted"
     | "borrowing"
     | "borrow_submitted"
     | "payment_settled"
@@ -129,6 +134,23 @@ export async function payViaPool(
   const amount = BigInt(option.amount);
   const ratio = config.collateralRatio ?? 1.5;
   const collateral = (amount * BigInt(Math.round(ratio * 100))) / 100n;
+
+  // Tier-1/2 collateralized borrow: the vault escrows `collateral` via transfer_from,
+  // so the agent must approve it on the CEP-18 asset first. Tier-3 borrows post zero
+  // collateral and skip this entirely.
+  if (collateral > 0n && config.autoApprove !== false) {
+    const asset = (option.asset ?? "").replace(/^0x/, "");
+    if (!asset) throw new Error("402 challenge has no `asset` — cannot approve collateral");
+    emit(config, "approving", { asset, collateral: collateral.toString() });
+    const { deployHash: approveHash } = await ensureCollateralAllowance(
+      { ...wiring, assetPackageHash: asset },
+      { vaultContractHash: wiring.vaultContractHash },
+      collateral
+    );
+    emit(config, "approve_submitted", { deployHash: approveHash });
+    const okApprove = await waitForDeploy(wiring, approveHash);
+    if (!okApprove) throw new Error(`collateral approve deploy failed: ${approveHash}`);
+  }
 
   emit(config, "borrowing", { amount: amount.toString(), collateral: collateral.toString() });
   const { deployHash } = await borrowAndPayOnChain(wiring, {

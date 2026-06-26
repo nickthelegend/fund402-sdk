@@ -184,7 +184,9 @@ export async function ensureCollateralAllowance(
     })
   );
 
-  const payment = ExecutableDeployItem.standardPayment("2000000000");
+  // 5 CSPR — the gas the proven live approves use; lower (e.g. 2 CSPR) is rejected
+  // by Condor at submission as Invalid Deploy.
+  const payment = ExecutableDeployItem.standardPayment("5000000000");
   const deploy = Deploy.makeDeploy(header, payment, session);
   deploy.sign(signer);
 

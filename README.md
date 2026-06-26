@@ -128,6 +128,12 @@ const data = await res.json();   // paid + served — the agent's own balance ca
 Prefer Axios? `withPaymentInterceptor(config)` returns an `AxiosInstance` with the
 same behaviour (Axios is an optional peer dependency).
 
+**Tiers & collateral.** Trusted (Tier-3) agents borrow with **zero collateral**.
+New/established (Tier-1/2) agents must post 150% collateral — `fund402Fetch`
+**auto-approves** the vault to escrow it before borrowing (`collateralRatio`, default
+`1.5`; set `autoApprove: false` to manage the allowance yourself, or `collateralRatio: 0`
+for Tier-3).
+
 ---
 
 ## How settlement works (and why you can trust it)
@@ -165,10 +171,17 @@ hits the endpoint → gets a 402 → borrows from the pool (the vault fronts the
 the merchant) → retries → the server verifies the settlement on-chain via CSPR.cloud
 → serves the resource.
 
-Last live run — agent `01baa8d8…` (Tier-3, **zero collateral**) borrowed `1000000`
-F402; the pool fronted it to the merchant and the server served the resource after
-verifying it on-chain:
-**[settlement deploy `96f30ddf…` ↗](https://testnet.cspr.live/deploy/96f30ddfac9b3b8bc04a9fe274b1c006aff398ac624e7360669a2c1f3dc28264)** (`status: processed`).
+Both credit paths are proven live through the SDK:
+
+- **Tier-3 (zero collateral)** — agent `01baa8d8…` borrowed `1000000` F402; the pool
+  fronted it to the merchant.
+  [settlement deploy `96f30ddf…` ↗](https://testnet.cspr.live/deploy/96f30ddfac9b3b8bc04a9fe274b1c006aff398ac624e7360669a2c1f3dc28264) (`status: processed`).
+- **Tier-1 (150% collateral)** — agent `017e90a1…` had `fund402Fetch` auto-approve and
+  **escrow `1500000` collateral** ([approve `f088362a…`](https://testnet.cspr.live/deploy/f088362a89720107dfe475ba8bc0660dbdb278cf25c3d633cf4e846414d8aa47)),
+  then borrow; verified on-chain (`collateral=1500000`).
+  [settlement deploy `a9dd1581…` ↗](https://testnet.cspr.live/deploy/a9dd158199ca65fda900863cd43db577983c1dcf3d6661409bf8d4c56bab649f) (`status: processed`).
+
+Run them yourself: `npm run test:e2e` (Tier-3) and `npm run test:e2e:collateral` (Tier-1).
 
 ## API
 
