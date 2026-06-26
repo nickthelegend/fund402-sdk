@@ -249,6 +249,57 @@ export async function waitForDeploy(
   return false;
 }
 
+/**
+ * LP deposits CEP-18 liquidity into the pool (minted as shares). The LP must first
+ * `approve` the vault for `amount` on the asset (see ensureCollateralAllowance). As
+ * borrow fees accrue, each share redeems for more — that's the LP's yield.
+ */
+export async function depositLiquidityOnChain(
+  cfg: CasperWiringConfig,
+  amount: bigint
+): Promise<{ deployHash: string }> {
+  const client = rpc(cfg.nodeUrl);
+  const signer = await loadPrivateKey(cfg.agentSecretKey, cfg.keyAlgorithm ?? KeyAlgorithm.ED25519);
+  const header = DeployHeader.default();
+  header.account = PublicKey.fromHex(cfg.agentPublicKey);
+  header.chainName = cfg.chainName;
+  header.ttl = new Duration(DEFAULT_DEPLOY_TTL);
+  const session = callPkg(
+    cfg.vaultContractHash,
+    "deposit_liquidity",
+    Args.fromMap({ amount: CLValue.newCLUInt256(amount.toString()) })
+  );
+  const deploy = Deploy.makeDeploy(header, ExecutableDeployItem.standardPayment("4000000000"), session);
+  deploy.sign(signer);
+  const result = await client.putDeploy(deploy);
+  return { deployHash: result.deployHash.toHex() };
+}
+
+/**
+ * LP burns `shares` and withdraws the CEP-18 they redeem for — including accrued
+ * yield (limited to the pool's free cash).
+ */
+export async function withdrawLiquidityOnChain(
+  cfg: CasperWiringConfig,
+  shares: bigint
+): Promise<{ deployHash: string }> {
+  const client = rpc(cfg.nodeUrl);
+  const signer = await loadPrivateKey(cfg.agentSecretKey, cfg.keyAlgorithm ?? KeyAlgorithm.ED25519);
+  const header = DeployHeader.default();
+  header.account = PublicKey.fromHex(cfg.agentPublicKey);
+  header.chainName = cfg.chainName;
+  header.ttl = new Duration(DEFAULT_DEPLOY_TTL);
+  const session = callPkg(
+    cfg.vaultContractHash,
+    "withdraw_liquidity",
+    Args.fromMap({ shares: CLValue.newCLUInt256(shares.toString()) })
+  );
+  const deploy = Deploy.makeDeploy(header, ExecutableDeployItem.standardPayment("4000000000"), session);
+  deploy.sign(signer);
+  const result = await client.putDeploy(deploy);
+  return { deployHash: result.deployHash.toHex() };
+}
+
 /** Casper account-hash ("00" + 32-byte hash) for the agent's public key. */
 export function agentTaggedAddress(agentPublicKey: string): string {
   const pk = PublicKey.fromHex(agentPublicKey);
