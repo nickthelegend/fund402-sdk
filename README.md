@@ -216,4 +216,4 @@ Run them yourself: `npm run test:e2e` (Tier-3) and `npm run test:e2e:collateral`
 The client side signs real deploys with a local key — **testnet only**, never reuse
 keys on mainnet. Keep keys out of source control. MIT licensed.
 
-Part of [Fund402](https://github.com/nickthelegend/fund402-casper) — JIT credit for AI agents on Casper.
+Part of [Fund402](https://github.com/nickthelegend/fund402-casper) — JIT credit for AI agents on Casper. **▶ [Watch the 45-second demo](https://github.com/nickthelegend/fund402-casper/blob/main/promo/fund402-promo.mp4)**.
